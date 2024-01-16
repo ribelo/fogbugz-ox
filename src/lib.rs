@@ -1,6 +1,6 @@
 pub mod case_details;
-pub mod columns;
 pub mod date;
+pub mod enums;
 pub mod export;
 pub mod list_cases;
 pub mod list_intervals;
