@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    columns::Column,
+    enums::Column,
     query::{IntoQuery, Query},
     FogbugzApi, ResponseError,
 };
@@ -30,10 +30,7 @@ impl Default for SearchRequestBuilder {
     fn default() -> Self {
         Self {
             query: None,
-            cols: Some(vec![
-                Column::TicketNumber.to_string(),
-                Column::Title.to_string(),
-            ]),
+            cols: Some(vec![Column::CaseId.to_string(), Column::Title.to_string()]),
             api: None,
         }
     }
