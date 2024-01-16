@@ -1,8 +1,13 @@
+use chrono::{DateTime, NaiveDateTime, Utc};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
+use serde_repr::Deserialize_repr;
 use thiserror::Error;
 
-use crate::{columns::Column, FogbugzApi, ResponseError};
+use crate::{
+    enums::{Category, Column, Priority, Status},
+    FogbugzApi, ResponseError,
+};
 
 #[derive(Debug, Serialize)]
 pub struct CaseDetailsRequest {
@@ -27,9 +32,15 @@ impl Default for CaseDetailsRequestBuilder {
         Self {
             case_id: None,
             cols: Some(vec![
-                Column::TicketNumber.to_string(),
+                Column::CaseId.to_string(),
                 Column::Title.to_string(),
                 Column::Events.to_string(),
+                Column::Project.to_string(),
+                Column::Area.to_string(),
+                Column::Priority.to_string(),
+                Column::Status.to_string(),
+                Column::Category.to_string(),
+                Column::IsOpen.to_string(),
             ]),
             api: None,
         }
@@ -45,30 +56,60 @@ pub enum CaseDetailsRequestBuilderError {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct EventDetail {
+pub struct Attachment {
+    #[serde(rename = "sFileName")]
+    pub file_name: String,
+    #[serde(rename = "sURL")]
+    pub url: String,
+}
+
+#[derive(Debug, Deserialize_repr, strum::Display)]
+#[repr(u8)]
+pub enum EventType {
+    Opened = 1,
+    Edited = 2,
+    Assigned = 3,
+    Resolved = 14,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Event {
+    #[serde(rename = "evt")]
+    pub event_type: EventType,
     #[serde(rename = "evtDescription")]
     pub description: String,
+    #[serde(rename = "dt")]
+    pub datetime: DateTime<Utc>,
     #[serde(rename = "ixPerson")]
     pub person_id: u64,
     #[serde(rename = "sPerson")]
     pub person: String,
+    #[serde(rename = "ixPersonAssignedTo")]
+    pub assigned_to_id: Option<u64>,
+    #[serde(rename = "rgAttachments")]
+    pub attachments: Option<Vec<Attachment>>,
     #[serde(rename = "s")]
     pub content: String,
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(untagged)]
-pub enum Event {
-    Unmodified(EventDetail),
-    Modified(Vec<EventDetail>),
-}
-
-#[derive(Debug, Deserialize)]
 pub struct CaseDetails {
     #[serde(rename = "ixBug")]
-    pub ticket_number: u64,
+    pub case_id: u64,
     #[serde(rename = "sTitle")]
     pub title: String,
+    #[serde(rename = "sProject")]
+    pub project: String,
+    #[serde(rename = "fOpen")]
+    pub is_open: bool,
+    #[serde(rename = "sArea")]
+    pub area: String,
+    #[serde(rename = "ixStatus")]
+    pub status: Status,
+    #[serde(rename = "ixPriority")]
+    pub priority: Priority,
+    #[serde(rename = "ixCategory")]
+    pub category: Category,
     pub events: Vec<Event>,
 }
 
@@ -135,8 +176,12 @@ impl CaseDetailsRequest {
 
         if response.status().is_success() {
             let mut json: serde_json::Value = response.json().await?;
-            let case = json["data"]["cases"][0].take();
-            let case_details: CaseDetails = serde_json::from_value(case)?;
+            println!("{}", serde_json::to_string_pretty(&json).unwrap());
+            if let serde_json::Value::Array(events) = &mut json["data"]["cases"][0]["events"] {
+                events.retain(|event| matches!(event, serde_json::Value::Object(_)));
+            }
+            let case_details: CaseDetails =
+                serde_json::from_value(json["data"]["cases"][0].take())?;
             Ok(case_details)
         } else {
             let json: serde_json::Value = response.json().await?;
@@ -166,7 +211,7 @@ mod tests {
             .unwrap();
         let request = api
             .case_details()
-            .case_id(61331)
+            .case_id(59170)
             .add_col(Column::Events)
             .add_col(Column::Body)
             .build()

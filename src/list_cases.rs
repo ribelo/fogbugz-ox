@@ -2,7 +2,7 @@ use reqwest::Url;
 use serde::Serialize;
 use thiserror::Error;
 
-use crate::{columns::Column, FogbugzApi, ResponseError};
+use crate::{enums::Column, FogbugzApi, ResponseError};
 
 #[derive(Debug, Serialize)]
 pub struct ListCasesRequest {
@@ -130,7 +130,7 @@ mod tests {
             .list_cases()
             .max(1)
             .add_col(Column::Title)
-            .add_col(Column::TicketNumber)
+            .add_col(Column::CaseId)
             .build()
             .unwrap();
         request.send().await.unwrap();
