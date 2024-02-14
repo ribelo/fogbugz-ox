@@ -63,13 +63,54 @@ pub struct Attachment {
     pub url: String,
 }
 
-#[derive(Debug, Deserialize_repr, strum::Display)]
-#[repr(u8)]
+#[derive(Debug, strum::Display)]
 pub enum EventType {
     Opened = 1,
     Edited = 2,
     Assigned = 3,
+    Reactivated = 4,
+    Reopened = 5,
+    Closed = 6,
+    Moved = 7,
+    Unknown = 8,
+    Replied = 9,
+    Forwarded = 10,
+    Received = 11,
+    Sorted = 12,
+    NotSorted = 13,
     Resolved = 14,
+    Emailed = 15,
+    ReleaseNoted = 16,
+    DeletedAttachment = 17,
+}
+
+impl<'de> Deserialize<'de> for EventType {
+    fn deserialize<D>(deserializer: D) -> Result<EventType, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let event_type = i32::deserialize(deserializer)?;
+        match event_type {
+            1 => Ok(EventType::Opened),
+            2 => Ok(EventType::Edited),
+            3 => Ok(EventType::Assigned),
+            4 => Ok(EventType::Reactivated),
+            5 => Ok(EventType::Reopened),
+            6 => Ok(EventType::Closed),
+            7 => Ok(EventType::Moved),
+            8 => Ok(EventType::Unknown),
+            9 => Ok(EventType::Replied),
+            10 => Ok(EventType::Forwarded),
+            11 => Ok(EventType::Received),
+            12 => Ok(EventType::Sorted),
+            13 => Ok(EventType::NotSorted),
+            14 => Ok(EventType::Resolved),
+            15 => Ok(EventType::Emailed),
+            16 => Ok(EventType::ReleaseNoted),
+            17 => Ok(EventType::DeletedAttachment),
+            _ => Ok(EventType::Unknown),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -86,7 +127,6 @@ pub struct Event {
     pub person: String,
     #[serde(rename = "ixPersonAssignedTo")]
     pub assigned_to_id: Option<u64>,
-    #[serde(rename = "rgAttachments")]
     pub attachments: Option<Vec<Attachment>>,
     #[serde(rename = "s")]
     pub content: String,
@@ -176,12 +216,11 @@ impl CaseDetailsRequest {
 
         if response.status().is_success() {
             let mut json: serde_json::Value = response.json().await?;
-            println!("{}", serde_json::to_string_pretty(&json).unwrap());
             if let serde_json::Value::Array(events) = &mut json["data"]["cases"][0]["events"] {
                 events.retain(|event| matches!(event, serde_json::Value::Object(_)));
             }
-            let case_details: CaseDetails =
-                serde_json::from_value(json["data"]["cases"][0].take())?;
+            let case_details =
+                serde_json::from_value::<CaseDetails>(json["data"]["cases"][0].take())?;
             Ok(case_details)
         } else {
             let json: serde_json::Value = response.json().await?;
@@ -211,7 +250,7 @@ mod tests {
             .unwrap();
         let request = api
             .case_details()
-            .case_id(59170)
+            .case_id(61331)
             .add_col(Column::Events)
             .add_col(Column::Body)
             .build()
