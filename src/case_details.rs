@@ -199,11 +199,8 @@ impl CaseDetailsRequest {
     }
     pub async fn send(&self) -> Result<CaseDetails, ResponseError> {
         let url = Url::parse(&self.api.url)?.join("api/search")?;
-        cfg_if::cfg_if! {
-            if #[cfg(feature = "leaky-bucket")] {
-                    self.api.limiter.acquire_one().await;
-            }
-        }
+        #[cfg(feature = "leaky-bucket")]
+        self.api.limiter.acquire_one().await;
         let response = self
             .api
             .client
@@ -256,5 +253,6 @@ mod tests {
             .build()
             .unwrap();
         let res = request.send().await.unwrap();
+        dbg!(res);
     }
 }

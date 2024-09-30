@@ -108,11 +108,8 @@ impl ListCasesRequest {
     }
     pub async fn send(&self) -> Result<Vec<Case>, ResponseError> {
         let url = Url::parse(&self.api.url)?.join("api/listCases")?;
-        cfg_if::cfg_if! {
-            if #[cfg(feature = "leaky-bucket")] {
-                    self.api.limiter.acquire_one().await;
-            }
-        }
+        #[cfg(feature = "leaky-bucket")]
+        self.api.limiter.acquire_one().await;
         let response = self
             .api
             .client
